@@ -19,7 +19,8 @@
           after = [ "k3s.service" ];
           before = [ "halt.target" "shutdown.target" "reboot.target" ];
           wantedBy = [ "default.target" ];
-          preStop = "${self.packages.x86_64-linux.default}/bin/kubevirt-graceful-shutdown";
+          script = "sleep 60 && ${self.packages.x86_64-linux.default}/bin/kubevirt-graceful-shutdown start";
+          preStop = "${self.packages.x86_64-linux.default}/bin/kubevirt-graceful-shutdown stop";
           serviceConfig = {
             Type = "oneshot";
             RemainAfterExit = "yes";
