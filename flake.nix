@@ -10,7 +10,12 @@
         in
         pkgs.writeShellScriptBin "kube-drain-node" ''
           HOSTNAME=$(${pkgs.nettools}/bin/hostname)
-          ${pkgs.k3s}/bin/k3s kubectl drain --force --grace-period=30 --timeout=40s $HOSTNAME
+          if [ "$1" = "drain" ]; then
+            exec ${pkgs.k3s}/bin/k3s kubectl drain --force --grace-period=30 --timeout=40s $HOSTNAME
+          elif [ "$1" = "undrain" ]; then
+            exec ${pkgs.k3s}/bin/k3s kubectl uncordon $HOSTNAME
+          fi
+          exit 2
         '';
 
       packages.x86_64-linux.default = self.packages.x86_64-linux.shutdownService;
@@ -29,7 +34,8 @@
             after = [ "k3s.service" ];
             before = [ "halt.target" "shutdown.target" "reboot.target" ];
             wantedBy = [ "default.target" ];
-            preStop = "${self.packages.x86_64-linux.kube-drain-node}/bin/kube-drain-node";
+            script = "${self.packages.x86_64-linux.kube-drain-node}/bin/kube-drain-node undrain";
+            preStop = "${self.packages.x86_64-linux.kube-drain-node}/bin/kube-drain-node drain";
             serviceConfig = {
               Type = "oneshot";
               RemainAfterExit = "yes";
