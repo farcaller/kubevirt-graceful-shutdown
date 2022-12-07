@@ -14,8 +14,17 @@
             exec ${pkgs.k3s}/bin/k3s kubectl drain --force --grace-period=30 --timeout=40s $HOSTNAME
           elif [ "$1" = "undrain" ]; then
             for i in 1 2 3 4 5; do 
-              ${pkgs.k3s}/bin/k3s kubectl uncordon $HOSTNAME && break || sleep 15
+              ${pkgs.k3s}/bin/k3s kubectl get node $HOSTNAME && break || sleep 15
             done
+
+            ${pkgs.k3s}/bin/k3s kubectl get node $HOSTNAME -o jsonpath="{.spec.taints[0]}" | grep NoSchedule
+            if [ $? -eq 0 ]; then
+              ${pkgs.k3s}/bin/k3s kubectl uncordon $HOSTNAME
+              exit $?
+            else
+              echo "the node is already undrained"
+              exit 0
+            fi
           fi
           exit 2
         '';
@@ -41,6 +50,7 @@
             serviceConfig = {
               Type = "oneshot";
               RemainAfterExit = "yes";
+              TimeoutStopSec = 90;
             };
           };
         };
