@@ -33,7 +33,7 @@
         drain = { config, ... }: {
           systemd.services.kube-drain-node = {
             wants = [ "k3s.service" ];
-            after = [ "k3s.service" "kubepods.slice" ];
+            after = [ "k3s.service" "kubepods.slice" "machines.target" ];
             before = [ "halt.target" "shutdown.target" "reboot.target" ];
             wantedBy = [ "default.target" ];
             script = "${self.packages.x86_64-linux.kube-drain-node}/bin/kube-drain-node undrain";
