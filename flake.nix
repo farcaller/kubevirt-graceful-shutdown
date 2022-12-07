@@ -13,7 +13,9 @@
           if [ "$1" = "drain" ]; then
             exec ${pkgs.k3s}/bin/k3s kubectl drain --force --grace-period=30 --timeout=40s $HOSTNAME
           elif [ "$1" = "undrain" ]; then
-            exec ${pkgs.k3s}/bin/k3s kubectl uncordon $HOSTNAME
+            for i in 1 2 3 4 5; do 
+              ${pkgs.k3s}/bin/k3s kubectl uncordon $HOSTNAME && break || sleep 15
+            done
           fi
           exit 2
         '';
@@ -31,7 +33,7 @@
         drain = { config, ... }: {
           systemd.services.kube-drain-node = {
             wants = [ "k3s.service" ];
-            after = [ "k3s.service" ];
+            after = [ "k3s.service" "kubepods.slice" ];
             before = [ "halt.target" "shutdown.target" "reboot.target" ];
             wantedBy = [ "default.target" ];
             script = "${self.packages.x86_64-linux.kube-drain-node}/bin/kube-drain-node undrain";
