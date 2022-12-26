@@ -2,7 +2,7 @@
   description = "Kubevirt graceful shutdown service.";
 
   outputs = { self, nixpkgs, flake-utils, mach-nix, ... }:
-    flake-utils.lib.eachDefaultSystem (system:
+    (flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
         machlib = mach-nix.lib.${system};
@@ -31,7 +31,7 @@
             exit 2
           '';
         };
-        
+
         apps.shutdownService = flake-utils.lib.mkApp { drv = packages.shutdownService; };
         apps.kube-drain-node = flake-utils.lib.mkApp { drv = packages.kube-drain-node; };
 
@@ -39,40 +39,40 @@
           requirements = "autopep8";
           packagesExtra = [ packages.shutdownService ];
         };
-
-        nixosModules = {
-          drain = { config, ... }: {
-            systemd.services.kube-drain-node = {
-              wants = [ "k3s.service" ];
-              after = [ "k3s.service" "kubepods.slice" "machines.target" ];
-              before = [ "halt.target" "shutdown.target" "reboot.target" ];
-              wantedBy = [ "default.target" ];
-              script = "${packages.kube-drain-node}/bin/kube-drain-node undrain";
-              preStop = "${packages.kube-drain-node}/bin/kube-drain-node drain";
-              serviceConfig = {
-                Type = "oneshot";
-                RemainAfterExit = "yes";
-                TimeoutStopSec = 90;
-              };
-            };
-          };
-          kubevirt = { config, ... }: {
-            systemd.services.kubevirt-graceful-shutdown = {
-              wants = [ "k3s.service" ];
-              after = [ "k3s.service" ];
-              before = [ "halt.target" "shutdown.target" "reboot.target" ];
-              wantedBy = [ "default.target" ];
-              script = "sleep 60 && ${packages.shutdownService}/bin/kubevirt-graceful-shutdown start";
-              preStop = "${packages.shutdownService}/bin/kubevirt-graceful-shutdown stop";
-              serviceConfig = {
-                Type = "oneshot";
-                RemainAfterExit = "yes";
-              };
-              environment = {
-                KUBECONFIG = "/etc/rancher/k3s/k3s.yaml";
-              };
+      })) // {
+      nixosModules = {
+        drain = { config, pkgs, ... }: {
+          systemd.services.kube-drain-node = {
+            wants = [ "k3s.service" ];
+            after = [ "k3s.service" "kubepods.slice" "machines.target" ];
+            before = [ "halt.target" "shutdown.target" "reboot.target" ];
+            wantedBy = [ "default.target" ];
+            script = "${self.packages.${pkgs.system}.kube-drain-node}/bin/kube-drain-node undrain";
+            preStop = "${self.packages.${pkgs.system}.kube-drain-node}/bin/kube-drain-node drain";
+            serviceConfig = {
+              Type = "oneshot";
+              RemainAfterExit = "yes";
+              TimeoutStopSec = 90;
             };
           };
         };
-      });
+        kubevirt = { config, pkgs, ... }: {
+          systemd.services.kubevirt-graceful-shutdown = {
+            wants = [ "k3s.service" ];
+            after = [ "k3s.service" ];
+            before = [ "halt.target" "shutdown.target" "reboot.target" ];
+            wantedBy = [ "default.target" ];
+            script = "sleep 60 && ${self.packages.${pkgs.system}.shutdownService}/bin/kubevirt-graceful-shutdown start";
+            preStop = "${self.packages.${pkgs.system}.shutdownService}/bin/kubevirt-graceful-shutdown stop";
+            serviceConfig = {
+              Type = "oneshot";
+              RemainAfterExit = "yes";
+            };
+            environment = {
+              KUBECONFIG = "/etc/rancher/k3s/k3s.yaml";
+            };
+          };
+        };
+      };
+    };
 }
