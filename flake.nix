@@ -19,7 +19,7 @@
                 ${pkgs.k3s}/bin/k3s kubectl get node $HOSTNAME && break || sleep 15
               done
 
-              ${pkgs.k3s}/bin/k3s kubectl get node $HOSTNAME -o jsonpath="{.spec.taints[0]}" | grep NoSchedule
+              ${pkgs.k3s}/bin/k3s kubectl get node $HOSTNAME | grep SchedulingDisabled
               if [ $? -eq 0 ]; then
                 ${pkgs.k3s}/bin/k3s kubectl uncordon $HOSTNAME
                 exit $?
